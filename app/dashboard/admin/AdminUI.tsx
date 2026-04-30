@@ -36,12 +36,12 @@ const recentStudents = [
 ];
 
 const courses = [
-  { title: "Mathematics (0580)",          level: "O Level", students: 312, status: "Active",      lessons: 24 },
-  { title: "Additional Mathematics",      level: "O Level", students: 189, status: "Active",      lessons: 18 },
-  { title: "Pure Mathematics 1 & 2",      level: "A Level", students: 156, status: "Active",      lessons: 32 },
-  { title: "Statistics 1 & 2",            level: "A Level", students: 98,  status: "Active",      lessons: 20 },
-  { title: "Mechanics 1",                 level: "A Level", students: 74,  status: "Coming Soon", lessons: 16 },
-  { title: "GRE Quantitative Reasoning",  level: "GRE",     students: 67,  status: "Active",      lessons: 28 },
+  { id: "o-level-math",      title: "Mathematics (0580)",         level: "O Level", students: 312, status: "Active",      lessons: 24 },
+  { id: "o-level-add-math",  title: "Additional Mathematics",     level: "O Level", students: 189, status: "Active",      lessons: 18 },
+  { id: "a-level-pure",      title: "Pure Mathematics 1 & 2",     level: "A Level", students: 156, status: "Active",      lessons: 32 },
+  { id: "a-level-stats",     title: "Statistics 1 & 2",           level: "A Level", students: 98,  status: "Active",      lessons: 20 },
+  { id: "a-level-mechanics", title: "Mechanics 1",                level: "A Level", students: 74,  status: "Coming Soon", lessons: 16 },
+  { id: "gre-quant",         title: "GRE Quantitative Reasoning", level: "GRE",     students: 67,  status: "Active",      lessons: 28 },
 ];
 
 const navItems = [
@@ -332,8 +332,8 @@ export default function AdminUI({ name, email }: { name: string; email: string }
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {courses.map(({ title, level, students, status, lessons }) => (
-                    <tr key={title} className="hover:bg-slate-50/50 transition-colors">
+                  {courses.map(({ id, title, level, students, status, lessons }) => (
+                    <tr key={id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-5 py-3.5">
                         <p className="text-sm font-semibold text-slate-800">{title}</p>
                         <span className={`text-xs font-medium ${
@@ -361,8 +361,12 @@ export default function AdminUI({ name, email }: { name: string; email: string }
                       </td>
                       <td className="px-5 py-3.5">
                         <div className="flex gap-3">
-                          <button className="text-xs text-indigo-600 hover:underline font-medium">Edit</button>
-                          <button className="text-xs text-slate-400 hover:text-slate-600 font-medium">View</button>
+                          <Link href={`/dashboard/admin/courses/${id}`} className="text-xs text-indigo-600 hover:underline font-medium">
+                            Manage
+                          </Link>
+                          <Link href={`/courses/${id}`} target="_blank" className="text-xs text-slate-400 hover:text-slate-600 font-medium">
+                            Preview ↗
+                          </Link>
                         </div>
                       </td>
                     </tr>
