@@ -143,6 +143,14 @@ export default function DashboardUI({ name, level, email }: { name: string; leve
               <p className="text-slate-400 text-xs truncate">{email}</p>
             </div>
           </div>
+          {email === "mr.habibiqbal@gmail.com" && (
+            <Link
+              href="/dashboard/admin"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-sm font-medium transition-colors mb-1"
+            >
+              <span>⚙️</span> Admin Panel
+            </Link>
+          )}
           <button onClick={handleLogout}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-400 hover:text-red-400 hover:bg-slate-800 text-sm transition-colors"
           >
