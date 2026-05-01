@@ -81,7 +81,22 @@ const navItems = [
 
 /* ── component ───────────────────────────────────────────── */
 
-export default function DashboardUI({ name, level, email }: { name: string; level: string; email: string }) {
+interface EnrolledCourse {
+  courseId:  string;
+  name:      string;
+  color:     string;
+  total:     number;
+  completed: number;
+  progress:  number;
+  next:      string;
+}
+
+export default function DashboardUI({
+  name, level, email, studentId = "IH-????", enrolledCourses = [],
+}: {
+  name: string; level: string; email: string;
+  studentId?: string; enrolledCourses?: EnrolledCourse[];
+}) {
   const router = useRouter();
   const [tab,         setTab]         = useState<"pending" | "completed">("pending");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -89,6 +104,17 @@ export default function DashboardUI({ name, level, email }: { name: string; leve
   const displayLevel = level.replace("_", " ").toUpperCase();
   const avgScore     = Math.round(recentResults.reduce((s, r) => s + (r.score / r.max) * 100, 0) / recentResults.length);
   const attendance   = Math.round(attendanceData.reduce((s, d) => s + d.pct, 0) / attendanceData.length);
+
+  // Use real enrolled courses if available, fall back to mock
+  const displayCourses: EnrolledCourse[] = enrolledCourses.length > 0 ? enrolledCourses : activeCourses.map((c) => ({
+    courseId:  "",
+    name:      c.name,
+    color:     c.color,
+    total:     c.total,
+    completed: c.done,
+    progress:  c.progress,
+    next:      c.next,
+  }));
 
   async function handleLogout() {
     const supabase = createClient();
@@ -140,7 +166,7 @@ export default function DashboardUI({ name, level, email }: { name: string; leve
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white text-sm font-semibold truncate">{name}</p>
-              <p className="text-slate-400 text-xs truncate">{email}</p>
+              <p className="text-indigo-300 text-xs font-mono font-bold">{studentId}</p>
             </div>
           </div>
           {email === "mr.habibiqbal@gmail.com" && (
@@ -355,21 +381,30 @@ export default function DashboardUI({ name, level, email }: { name: string; leve
                 <p className="text-xs text-slate-400 mt-0.5">Current progress</p>
               </div>
               <div className="divide-y divide-slate-50">
-                {activeCourses.map(({ name: cname, progress, done, total, next, color }) => (
-                  <div key={cname} className="px-5 py-4 hover:bg-slate-50 transition-colors">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-bold text-slate-800 leading-snug">{cname}</p>
-                      <span className="text-xs font-bold text-indigo-600">{progress}%</span>
-                    </div>
-                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-2">
-                      <div className={`h-full ${color} rounded-full`} style={{ width: `${progress}%` }} />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] text-slate-400">{done}/{total} lessons</p>
-                      <p className="text-[10px] text-indigo-500 font-medium truncate max-w-[100px]">▶ {next}</p>
-                    </div>
+                {displayCourses.length === 0 ? (
+                  <div className="px-5 py-8 text-center">
+                    <p className="text-slate-400 text-sm">No courses enrolled yet.</p>
+                    <Link href="/courses" className="mt-2 inline-block text-xs font-semibold text-indigo-600 hover:underline">
+                      Browse courses →
+                    </Link>
                   </div>
-                ))}
+                ) : (
+                  displayCourses.map((c) => (
+                    <div key={c.name} className="px-5 py-4 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-bold text-slate-800 leading-snug truncate pr-2">{c.name}</p>
+                        <span className="text-xs font-bold text-indigo-600 shrink-0">{c.progress}%</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-2">
+                        <div className={`h-full ${c.color} rounded-full`} style={{ width: `${c.progress}%` }} />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] text-slate-400">{c.completed}/{c.total} lessons</p>
+                        <p className="text-[10px] text-indigo-500 font-medium truncate max-w-[120px]">▶ {c.next}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
                 <div className="px-5 py-3">
                   <Link href="/courses"
                     className="block text-center text-xs font-semibold text-indigo-600 hover:text-indigo-800 py-2 rounded-xl hover:bg-indigo-50 transition-colors"

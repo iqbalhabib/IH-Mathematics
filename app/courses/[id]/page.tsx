@@ -1,6 +1,24 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { courses, type Course } from "@/lib/courses-data";
+import { createClient } from "@/lib/supabase/server";
+import EnrollButton from "./EnrollButton";
+
+type CoursePricing = {
+  access_type: "free" | "paid" | "preview";
+  price: number;
+  original_price: number;
+  billing_period: "month" | "year" | "once";
+  preview_lessons: number;
+};
+
+const DEFAULT_PRICING: CoursePricing = {
+  access_type: "free",
+  price: 0,
+  original_price: 0,
+  billing_period: "month",
+  preview_lessons: 3,
+};
 
 export default async function CoursePage({
   params,
@@ -15,6 +33,35 @@ export default async function CoursePage({
     (sum, sec) => sum + sec.lessons.length,
     0,
   );
+
+  const supabase = await createClient();
+
+  // Check logged-in user + enrollment status
+  const { data: { user } } = await supabase.auth.getUser();
+  let isEnrolled = false;
+  if (user) {
+    try {
+      const { data } = await supabase
+        .from("enrollments")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("course_id", id)
+        .eq("is_active", true)
+        .single();
+      isEnrolled = !!data;
+    } catch { /* enrollments table not yet created */ }
+  }
+
+  // Fetch pricing (falls back to free if table doesn't exist yet)
+  let pricing: CoursePricing = DEFAULT_PRICING;
+  try {
+    const { data } = await supabase
+      .from("course_settings")
+      .select("access_type, price, original_price, billing_period, preview_lessons")
+      .eq("course_id", id)
+      .single();
+    if (data) pricing = data as CoursePricing;
+  } catch { /* table not created yet */ }
 
   return (
     <>
@@ -103,7 +150,7 @@ export default async function CoursePage({
 
             {/* Right — enrollment card (desktop) */}
             <div className="hidden lg:block">
-              <EnrollmentCard course={course} totalLessons={totalLessons} />
+              <EnrollmentCard course={course} totalLessons={totalLessons} pricing={pricing} isLoggedIn={!!user} isEnrolled={isEnrolled} />
             </div>
           </div>
         </div>
@@ -292,13 +339,13 @@ export default async function CoursePage({
 
             {/* Right — sticky enrollment card (desktop) */}
             <div className="hidden lg:block lg:sticky lg:top-24">
-              <EnrollmentCard course={course} totalLessons={totalLessons} />
+              <EnrollmentCard course={course} totalLessons={totalLessons} pricing={pricing} isLoggedIn={!!user} isEnrolled={isEnrolled} />
             </div>
           </div>
 
           {/* Mobile enrollment card */}
           <div className="lg:hidden mt-8">
-            <EnrollmentCard course={course} totalLessons={totalLessons} />
+            <EnrollmentCard course={course} totalLessons={totalLessons} pricing={pricing} isLoggedIn={!!user} isEnrolled={isEnrolled} />
           </div>
         </div>
       </section>
@@ -310,10 +357,32 @@ export default async function CoursePage({
 function EnrollmentCard({
   course,
   totalLessons,
+  pricing,
+  isLoggedIn,
+  isEnrolled,
 }: {
   course: Course;
   totalLessons: number;
+  pricing: CoursePricing;
+  isLoggedIn: boolean;
+  isEnrolled: boolean;
 }) {
+  const periodLabel: Record<string, string> = {
+    month: "/mo",
+    year: "/yr",
+    once: " one-time",
+  };
+
+  const isFree = pricing.access_type === "free";
+  const isPaid = pricing.access_type === "paid";
+  const isPreview = pricing.access_type === "preview";
+
+  const priceDisplay = isPaid || isPreview
+    ? `৳${pricing.price.toLocaleString()}${periodLabel[pricing.billing_period]}`
+    : "Free";
+
+  const hasDiscount = (isPaid || isPreview) && pricing.original_price > pricing.price && pricing.original_price > 0;
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
       {/* Course thumbnail mini */}
@@ -326,26 +395,41 @@ function EnrollmentCard({
       </div>
 
       <div className="p-6">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-3xl font-bold text-slate-900">Free</span>
-          <span className="text-sm text-slate-400 line-through">৳2,500/mo</span>
+        {/* Price row */}
+        <div className="flex items-end gap-3 mb-1">
+          <span className="text-3xl font-bold text-slate-900">{priceDisplay}</span>
+          {hasDiscount && (
+            <span className="text-sm text-slate-400 line-through mb-0.5">
+              ৳{pricing.original_price.toLocaleString()}{periodLabel[pricing.billing_period]}
+            </span>
+          )}
         </div>
-        <p className="text-xs text-emerald-600 font-semibold mb-5">
-          Free preview — enroll to unlock all lessons
-        </p>
 
-        <Link
-          href="/signup"
-          className="block w-full text-center px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-lg shadow-indigo-200 mb-3"
-        >
-          Enroll Now — It&apos;s Free
-        </Link>
-        <Link
-          href="/login"
-          className="block w-full text-center px-6 py-3 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-all text-sm"
-        >
-          Already enrolled? Log in
-        </Link>
+        {/* Subtext */}
+        {isFree && (
+          <p className="text-xs text-emerald-600 font-semibold mb-5">
+            Completely free — full access to all lessons
+          </p>
+        )}
+        {isPreview && (
+          <p className="text-xs text-amber-600 font-semibold mb-5">
+            First {pricing.preview_lessons} lessons free · then ৳{pricing.price.toLocaleString()}{periodLabel[pricing.billing_period]}
+          </p>
+        )}
+        {isPaid && (
+          <p className="text-xs text-slate-500 font-semibold mb-5">
+            Full course access
+          </p>
+        )}
+
+        {/* CTA buttons — real enrollment */}
+        <EnrollButton
+          courseId={course.id}
+          isLoggedIn={isLoggedIn}
+          initialEnrolled={isEnrolled}
+          isFree={isFree}
+          accessType={pricing.access_type}
+        />
 
         <div className="mt-6 space-y-3 text-sm text-slate-600">
           <p className="font-semibold text-slate-800 mb-1">This course includes:</p>

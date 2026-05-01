@@ -45,11 +45,12 @@ const courses = [
 ];
 
 const navItems = [
-  { label: "Overview",  href: "/dashboard/admin",          icon: "🏠" },
-  { label: "Students",  href: "/dashboard/admin#students", icon: "👤" },
-  { label: "Courses",   href: "/dashboard/admin#courses",  icon: "📚" },
-  { label: "Papers",    href: "/past-papers",              icon: "📄" },
-  { label: "Settings",  href: "#",                         icon: "⚙️" },
+  { label: "Overview",    href: "/dashboard/admin",              icon: "🏠" },
+  { label: "Students",    href: "/dashboard/admin#students",     icon: "👤" },
+  { label: "Courses",     href: "/dashboard/admin#courses",      icon: "📚" },
+  { label: "Promo Codes", href: "/dashboard/admin/promo-codes",  icon: "🏷️" },
+  { label: "Papers",      href: "/past-papers",                  icon: "📄" },
+  { label: "Settings",    href: "#",                             icon: "⚙️" },
 ];
 
 const maxSignup = Math.max(...weeklySignups.map((d) => d.count));

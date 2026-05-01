@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 const navLinks = [
   { label: "Courses",     href: "/courses" },
@@ -14,9 +16,11 @@ const navLinks = [
 export default function Navbar() {
   const [scrolled, setScrolled]   = useState(false);
   const [menuOpen, setMenuOpen]   = useState(false);
+  const [user,     setUser]       = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const pathname = usePathname();
+  const router   = useRouter();
 
-  // Hide on dashboard and auth pages — they have their own headers
   const hidden = pathname.startsWith("/dashboard") || pathname === "/login" || pathname === "/signup";
 
   useEffect(() => {
@@ -25,7 +29,36 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  useEffect(() => {
+    const supabase = createClient();
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+      setAuthReady(true);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setAuthReady(true);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setUser(null);
+    router.push("/");
+    router.refresh();
+  }
+
   if (hidden) return null;
+
+  const isAdmin = user?.email === "mr.habibiqbal@gmail.com";
+  const dashboardHref = isAdmin ? "/dashboard/admin" : "/dashboard/student";
+  const displayName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Account";
+  const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
     <header
@@ -72,24 +105,60 @@ export default function Navbar() {
             ))}
           </nav>
 
-          {/* Desktop CTA */}
+          {/* Desktop CTA — auth-aware */}
           <div className="hidden md:flex items-center gap-3">
-            <Link
-              href="/login"
-              className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors ${
-                scrolled
-                  ? "text-slate-600 hover:text-indigo-600"
-                  : "text-white/80 hover:text-white"
-              }`}
-            >
-              Log In
-            </Link>
-            <Link
-              href="/signup"
-              className="text-sm font-semibold px-5 py-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-md hover:shadow-indigo-200 hover:shadow-lg"
-            >
-              Get Started Free
-            </Link>
+            {!authReady ? (
+              /* Skeleton while auth loads */
+              <div className="w-24 h-8 rounded-lg bg-white/10 animate-pulse" />
+            ) : user ? (
+              /* Logged in */
+              <div className="flex items-center gap-3">
+                <Link
+                  href={dashboardHref}
+                  className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors ${
+                    scrolled
+                      ? "text-slate-600 hover:text-indigo-600 hover:bg-indigo-50"
+                      : "text-white/80 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  My Dashboard
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className={`flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-lg transition-colors ${
+                    scrolled
+                      ? "text-slate-500 hover:text-red-600 hover:bg-red-50"
+                      : "text-white/70 hover:text-white hover:bg-white/10"
+                  }`}
+                  title={`Signed in as ${displayName}`}
+                >
+                  <span className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
+                    {initials}
+                  </span>
+                  <span className="hidden lg:inline max-w-[100px] truncate">{displayName}</span>
+                </button>
+              </div>
+            ) : (
+              /* Logged out */
+              <>
+                <Link
+                  href="/login"
+                  className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors ${
+                    scrolled
+                      ? "text-slate-600 hover:text-indigo-600"
+                      : "text-white/80 hover:text-white"
+                  }`}
+                >
+                  Log In
+                </Link>
+                <Link
+                  href="/signup"
+                  className="text-sm font-semibold px-5 py-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-md hover:shadow-indigo-200 hover:shadow-lg"
+                >
+                  Get Started Free
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile hamburger */}
@@ -127,20 +196,40 @@ export default function Navbar() {
             </Link>
           ))}
           <div className="pt-3 border-t border-slate-100 mt-2 flex flex-col gap-2">
-            <Link
-              href="/login"
-              onClick={() => setMenuOpen(false)}
-              className="px-4 py-3 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 text-center"
-            >
-              Log In
-            </Link>
-            <Link
-              href="/signup"
-              onClick={() => setMenuOpen(false)}
-              className="px-4 py-3 rounded-xl text-sm font-semibold bg-indigo-600 text-white text-center hover:bg-indigo-700 transition-colors"
-            >
-              Get Started Free
-            </Link>
+            {user ? (
+              <>
+                <Link
+                  href={dashboardHref}
+                  onClick={() => setMenuOpen(false)}
+                  className="px-4 py-3 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 text-center"
+                >
+                  My Dashboard
+                </Link>
+                <button
+                  onClick={() => { setMenuOpen(false); handleSignOut(); }}
+                  className="px-4 py-3 rounded-xl text-sm font-semibold bg-red-50 text-red-600 text-center hover:bg-red-100 transition-colors"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="px-4 py-3 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 text-center"
+                >
+                  Log In
+                </Link>
+                <Link
+                  href="/signup"
+                  onClick={() => setMenuOpen(false)}
+                  className="px-4 py-3 rounded-xl text-sm font-semibold bg-indigo-600 text-white text-center hover:bg-indigo-700 transition-colors"
+                >
+                  Get Started Free
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
