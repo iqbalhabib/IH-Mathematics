@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geist.variable} scroll-smooth`}>
-      <body className="min-h-screen flex flex-col bg-white text-slate-900 antialiased font-sans">
+      <body suppressHydrationWarning className="min-h-screen flex flex-col bg-white text-slate-900 antialiased font-sans">
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />
